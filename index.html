@@ -1,0 +1,198 @@
+<!DOCTYPE html>
+<html lang="en-US">
+<head>
+  <meta charset="UTF-8" />
+  <title>Directory Tree Generator</title>
+  <style>
+        body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen,
+        Ubuntu, Cantarell, 'Open Sans', 'Helvetica Neue', sans-serif;
+      background-color: #fff;
+      color: #333;
+      padding: 2rem;
+      max-width: 800px;
+      margin: auto;
+    }
+
+    h2 {
+      margin-top: 0;
+    }
+
+    #drop-area {
+      border: 1px dashed #ccc;
+      padding: 2rem;
+      text-align: center;
+      transition: background 0.2s ease;
+    }
+
+    #drop-area.hover {
+      background-color: #f5f5f5;
+    }
+
+    #tree-output {
+      white-space: pre;
+      background-color: #f9f9f9;
+      padding: 1rem;
+      overflow-x: auto;
+      margin-top: 1rem;
+      font-family: monospace;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+
+    .controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 1rem;
+      flex-wrap: wrap;
+    }
+
+    label {
+      font-size: 14px;
+    }
+
+    button {
+      background-color: transparent;
+      border: 1px solid #ccc;
+      padding: 0.4rem 0.8rem;
+      border-radius: 4px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: background 0.2s ease;
+    }
+
+    button:hover {
+      background-color: #eee;
+    }
+  </style>
+</head>
+<body>
+
+<h2>Generate Directory Tree Text</h2>
+
+<div id="drop-area">Please drag and drop a folder into this area</div>
+
+<div class="controls">
+  <label><input type="checkbox" id="show-files" checked /> Show all files</label>
+  <button onclick="copyToClipboard()">Copy to Clipboard</button>
+</div>
+
+<pre id="tree-output"></pre>
+
+<script>
+  const dropArea = document.getElementById('drop-area');
+const treeOutput = document.getElementById('tree-output');
+const showFilesCheckbox = document.getElementById('show-files');
+
+let treeData = null;
+
+dropArea.addEventListener('dragover', e => {
+    e.preventDefault();
+    dropArea.classList.add('hover');
+});
+
+dropArea.addEventListener('dragleave', () => {
+    dropArea.classList.remove('hover');
+});
+
+dropArea.addEventListener('drop', async e => {
+    e.preventDefault();
+    dropArea.classList.remove('hover');
+
+    // 清空旧内容
+    treeOutput.textContent = '';
+    treeData = null;
+
+    const items = e.dataTransfer.items;
+
+    for (let i = 0; i < items.length; i++) {
+        const entry = items[i].webkitGetAsEntry();
+
+        if (entry && entry.isDirectory) {
+            const rootName = `${entry.name}/`;
+            const subtree = await generateTree(entry);
+            const rootStructure = [{ name: rootName, type: 'dir', children: subtree }];
+            treeData = rootStructure;
+            const output = formatTree(treeData, '', showFilesCheckbox.checked, true); // 注意传入 isRoot = true
+            treeOutput.textContent = output;
+            return;
+        } else if (items[i].kind === 'file') {
+            alert('请拖入整个文件夹，而非单个文件。');
+            return;
+        }
+    }
+});
+
+async function generateTree(entry, path = '') {
+    const dirReader = entry.createReader();
+    const entries = [];
+
+    const readEntries = async () => {
+        return new Promise(resolve => {
+            dirReader.readEntries(results => {
+                resolve([...results]);
+            });
+        });
+    };
+
+    let contents = await readEntries();
+
+    while (contents.length > 0) {
+        for (const item of contents) {
+            if (item.isDirectory) {
+                const subtree = await generateTree(item, `${path}/${item.name}`);
+                entries.push({ name: `${item.name}/`, type: 'dir', children: subtree });
+            } else if (item.isFile) {
+                entries.push({ name: item.name, type: 'file' });
+            }
+        }
+        contents = await readEntries();
+    }
+
+    return entries;
+}
+
+function formatTree(tree, indent, showFiles, isRoot = false) {
+    let result = '';
+    const len = tree.length;
+
+    tree.forEach((node, index) => {
+        const isLast = index === len - 1;
+
+        let prefix = '';
+        if (!isRoot) {
+            prefix = isLast ? '└── ' : '├── ';
+        }
+
+        if (node.type === 'file' && !showFiles) return;
+
+        if (isRoot) {
+            result += `${node.name}\n`;
+        } else {
+            result += `${indent}${prefix}${node.name}\n`;
+        }
+
+        const childIndent = isRoot ? '' : indent + (isLast ? '    ' : '│   ');
+
+        if (node.type === 'dir' && node.children) {
+            const subTree = formatTree(node.children, childIndent, showFiles);
+            result += subTree;
+        }
+    });
+
+    return result;
+}
+
+showFilesCheckbox.addEventListener('change', () => {
+    if (!treeData) return;
+    const output = formatTree(treeData, '', showFilesCheckbox.checked, true);
+    treeOutput.textContent = output;
+});
+
+async function copyToClipboard() {
+    await navigator.clipboard.writeText(treeOutput.textContent);
+}
+</script>
+</body>
+</html>
