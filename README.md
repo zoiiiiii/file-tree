@@ -1,15 +1,16 @@
-# file-tree-generator
+# file-tree
 
-Generate File Directory Tree Text
+Generate directory tree from files
 
-<img src="https://github.com/user-attachments/assets/2d3cea80-6ad6-4c04-a17e-74c5bdc49618">
+[Online Preview](https://zoiii-file-tree.netlify.app/)
 
+<img width="1440" src="https://github.com/user-attachments/assets/b924e4fc-22fc-41d4-a31f-3cfea62779ae" />
 
 ```
 test/
-├── .DS_Store
+├── index.html
 ├── css/
-├── js/
-└── html/
-    └── index.html
+│   └── style.css
+└── js/
+    └── script.js
 ```
